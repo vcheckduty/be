@@ -1,0 +1,197 @@
+import { NextRequest, NextResponse } from 'next/server';
+import connectDB from '@/lib/mongodb';
+import User, { UserRole } from '@/models/User';
+import { generateToken } from '@/lib/auth';
+
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+/**
+ * OPTIONS /api/auth/register
+ * Handle CORS preflight
+ */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
+/**
+ * Validate registration request body
+ */
+interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+  fullName: string;
+  role?: UserRole;
+  badgeNumber?: string;
+  department?: string;
+}
+
+function validateRegisterRequest(body: any): {
+  isValid: boolean;
+  data?: RegisterRequest;
+  error?: string;
+} {
+  if (!body) {
+    return { isValid: false, error: 'Request body is required' };
+  }
+
+  const { username, email, password, fullName, role, badgeNumber, department } = body;
+
+  // Required fields validation
+  if (!username || typeof username !== 'string' || username.trim().length < 3) {
+    return { isValid: false, error: 'Username must be at least 3 characters' };
+  }
+
+  if (!email || typeof email !== 'string' || !email.match(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/)) {
+    return { isValid: false, error: 'Valid email address is required' };
+  }
+
+  if (!password || typeof password !== 'string' || password.length < 6) {
+    return { isValid: false, error: 'Password must be at least 6 characters' };
+  }
+
+  if (!fullName || typeof fullName !== 'string' || fullName.trim().length === 0) {
+    return { isValid: false, error: 'Full name is required' };
+  }
+
+  // Optional fields validation
+  if (role && !Object.values(UserRole).includes(role)) {
+    return { isValid: false, error: 'Invalid role specified' };
+  }
+
+  return {
+    isValid: true,
+    data: {
+      username: username.trim().toLowerCase(),
+      email: email.trim().toLowerCase(),
+      password,
+      fullName: fullName.trim(),
+      role: role || UserRole.OFFICER,
+      badgeNumber: badgeNumber?.trim(),
+      department: department?.trim(),
+    },
+  };
+}
+
+/**
+ * POST /api/auth/register
+ * Register a new user
+ */
+export async function POST(request: NextRequest) {
+  try {
+    // Parse request body
+    const body = await request.json();
+
+    // Validate request data
+    const validation = validateRegisterRequest(body);
+    if (!validation.isValid) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    const userData = validation.data!;
+
+    // Connect to MongoDB
+    await connectDB();
+
+    // Check if username already exists
+    const existingUsername = await User.findOne({ username: userData.username });
+    if (existingUsername) {
+      return NextResponse.json(
+        { success: false, error: 'Username already exists' },
+        { status: 409, headers: corsHeaders }
+      );
+    }
+
+    // Check if email already exists
+    const existingEmail = await User.findOne({ email: userData.email });
+    if (existingEmail) {
+      return NextResponse.json(
+        { success: false, error: 'Email already exists' },
+        { status: 409, headers: corsHeaders }
+      );
+    }
+
+    // Create new user
+    const user = await User.create(userData);
+
+    // Generate JWT token
+    const token = generateToken({
+      userId: user._id.toString(),
+      username: user.username,
+      email: user.email,
+      role: user.role,
+    });
+
+    // Return success response (excluding password)
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'User registered successfully',
+        data: {
+          user: {
+            id: user._id,
+            username: user.username,
+            email: user.email,
+            fullName: user.fullName,
+            role: user.role,
+            badgeNumber: user.badgeNumber,
+            department: user.department,
+            isActive: user.isActive,
+            createdAt: user.createdAt,
+          },
+          token,
+        },
+      },
+      { status: 201, headers: corsHeaders }
+    );
+  } catch (error: any) {
+    console.error('❌ Registration error:', error);
+
+    // Handle MongoDB duplicate key error
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return NextResponse.json(
+        { success: false, error: `${field} already exists` },
+        { status: 409, headers: corsHeaders }
+      );
+    }
+
+    // Handle MongoDB validation errors
+    if (error.name === 'ValidationError') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Validation error',
+          details: Object.values(error.errors).map((err: any) => err.message),
+        },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    // Handle JSON parse errors
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid JSON in request body' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    // Generic server error
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      },
+      { status: 500, headers: corsHeaders }
+    );
+  }
+}
