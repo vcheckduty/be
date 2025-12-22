@@ -2,20 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User, { UserRole } from '@/models/User';
 import { generateToken } from '@/lib/auth';
-
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
+import { handleCorsOptions, getCorsHeaders } from '@/lib/cors';
 
 /**
  * OPTIONS /api/auth/register
  * Handle CORS preflight
  */
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsOptions(request);
 }
 
 /**
@@ -83,6 +77,8 @@ function validateRegisterRequest(body: any): {
  * Register a new user
  */
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  
   try {
     // Parse request body
     const body = await request.json();
@@ -92,7 +88,7 @@ export async function POST(request: NextRequest) {
     if (!validation.isValid) {
       return NextResponse.json(
         { success: false, error: validation.error },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -106,7 +102,7 @@ export async function POST(request: NextRequest) {
     if (existingUsername) {
       return NextResponse.json(
         { success: false, error: 'Username already exists' },
-        { status: 409, headers: corsHeaders }
+        { status: 409, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -115,7 +111,7 @@ export async function POST(request: NextRequest) {
     if (existingEmail) {
       return NextResponse.json(
         { success: false, error: 'Email already exists' },
-        { status: 409, headers: corsHeaders }
+        { status: 409, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -150,7 +146,7 @@ export async function POST(request: NextRequest) {
           token,
         },
       },
-      { status: 201, headers: corsHeaders }
+      { status: 201, headers: getCorsHeaders(origin) }
     );
   } catch (error: any) {
     console.error('❌ Registration error:', error);
@@ -160,7 +156,7 @@ export async function POST(request: NextRequest) {
       const field = Object.keys(error.keyPattern)[0];
       return NextResponse.json(
         { success: false, error: `${field} already exists` },
-        { status: 409, headers: corsHeaders }
+        { status: 409, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -172,7 +168,7 @@ export async function POST(request: NextRequest) {
           error: 'Validation error',
           details: Object.values(error.errors).map((err: any) => err.message),
         },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -180,7 +176,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof SyntaxError) {
       return NextResponse.json(
         { success: false, error: 'Invalid JSON in request body' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -191,7 +187,7 @@ export async function POST(request: NextRequest) {
         error: 'Internal server error',
         message: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }

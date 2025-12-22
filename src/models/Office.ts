@@ -70,7 +70,7 @@ const OfficeSchema: Schema<IOffice> = new Schema(
 /**
  * Create indexes for efficient queries
  */
-OfficeSchema.index({ name: 1 });
+// Note: unique: true already creates an index for 'name'
 OfficeSchema.index({ isActive: 1 });
 OfficeSchema.index({ 'location.lat': 1, 'location.lng': 1 });
 

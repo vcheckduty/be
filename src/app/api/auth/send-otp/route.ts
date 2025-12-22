@@ -2,20 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import OTP from '@/models/OTP';
 import { sendOTPEmail } from '@/lib/nodemailer';
-
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
+import { handleCorsOptions, getCorsHeaders } from '@/lib/cors';
 
 /**
  * OPTIONS /api/auth/send-otp
  * Handle CORS preflight
  */
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsOptions(request);
 }
 
 /**
@@ -23,6 +17,8 @@ export async function OPTIONS() {
  * Generate and send a 6-digit OTP code to the user's email
  */
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  
   try {
     const { email } = await request.json();
 
@@ -30,7 +26,7 @@ export async function POST(request: NextRequest) {
     if (!email || typeof email !== 'string') {
       return NextResponse.json(
         { error: 'Valid email is required' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -39,7 +35,7 @@ export async function POST(request: NextRequest) {
     if (!emailRegex.test(email)) {
       return NextResponse.json(
         { error: 'Invalid email format' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -69,7 +65,7 @@ export async function POST(request: NextRequest) {
           message: 'OTP sent successfully to your email',
           expiresIn: '5 minutes',
         },
-        { status: 200, headers: corsHeaders }
+        { status: 200, headers: getCorsHeaders(origin) }
       );
     } catch (emailError) {
       // If email fails, delete the OTP from database
@@ -78,7 +74,7 @@ export async function POST(request: NextRequest) {
       console.error('Email sending failed:', emailError);
       return NextResponse.json(
         { error: 'Failed to send OTP email. Please check your email configuration.' },
-        { status: 500, headers: corsHeaders }
+        { status: 500, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -86,7 +82,7 @@ export async function POST(request: NextRequest) {
     console.error('Send OTP error:', error);
     return NextResponse.json(
       { error: 'Failed to send OTP. Please try again.' },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }

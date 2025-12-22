@@ -117,8 +117,7 @@ UserSchema.methods.comparePassword = async function (
 /**
  * Create indexes for efficient queries
  */
-UserSchema.index({ username: 1 });
-UserSchema.index({ email: 1 });
+// Note: unique: true already creates indexes for 'username' and 'email'
 UserSchema.index({ role: 1 });
 UserSchema.index({ isActive: 1 });
 

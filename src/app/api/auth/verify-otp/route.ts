@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import OTP from '@/models/OTP';
-
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
+import { handleCorsOptions, getCorsHeaders } from '@/lib/cors';
 
 /**
  * OPTIONS /api/auth/verify-otp
  * Handle CORS preflight
  */
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsOptions(request);
 }
 
 /**
@@ -22,6 +16,8 @@ export async function OPTIONS() {
  * Verify the OTP code against the database
  */
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  
   try {
     const { email, code } = await request.json();
 
@@ -29,14 +25,14 @@ export async function POST(request: NextRequest) {
     if (!email || typeof email !== 'string') {
       return NextResponse.json(
         { error: 'Valid email is required' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
     if (!code || typeof code !== 'string' || code.length !== 6) {
       return NextResponse.json(
         { error: 'Valid 6-digit code is required' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -52,7 +48,7 @@ export async function POST(request: NextRequest) {
     if (!otpDocument) {
       return NextResponse.json(
         { error: 'No OTP found for this email. Please request a new code.' },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -60,7 +56,7 @@ export async function POST(request: NextRequest) {
     if (otpDocument.code !== code) {
       return NextResponse.json(
         { error: 'Invalid OTP code. Please check and try again.' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -73,14 +69,14 @@ export async function POST(request: NextRequest) {
         message: 'Email verified successfully',
         email: email.toLowerCase(),
       },
-      { status: 200, headers: corsHeaders }
+      { status: 200, headers: getCorsHeaders(origin) }
     );
 
   } catch (error) {
     console.error('Verify OTP error:', error);
     return NextResponse.json(
       { error: 'Failed to verify OTP. Please try again.' },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }
