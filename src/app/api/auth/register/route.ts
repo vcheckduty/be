@@ -115,8 +115,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create new user
-    const user = await User.create(userData);
+    // Create new user with isActive=false (will be activated after OTP verification)
+    const user = await User.create({
+      ...userData,
+      isActive: false,
+    });
 
     // Generate JWT token
     const token = generateToken({

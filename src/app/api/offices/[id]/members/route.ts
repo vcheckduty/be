@@ -20,7 +20,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const origin = request.headers.get('origin');
   
@@ -47,12 +47,15 @@ export async function GET(
     // Connect to MongoDB
     await connectDB();
 
-    const officeId = params.id;
+    const { id: officeId } = await params;
+    
+    console.log('🔍 GET members - Office ID:', officeId, 'Length:', officeId.length);
 
     // Validate office ID
     if (!mongoose.Types.ObjectId.isValid(officeId)) {
+      console.log('❌ Invalid ObjectId:', officeId);
       return NextResponse.json(
-        { success: false, error: 'Invalid office ID' },
+        { success: false, error: `Invalid office ID format: ${officeId}` },
         { status: 400, headers: getCorsHeaders(origin) }
       );
     }
@@ -70,13 +73,25 @@ export async function GET(
       );
     }
 
+    // Transform members to include id field
+    const membersWithId = office.members.map((member: any) => ({
+      id: member._id.toString(),
+      username: member.username,
+      email: member.email,
+      fullName: member.fullName,
+      role: member.role,
+      badgeNumber: member.badgeNumber,
+      department: member.department,
+      isActive: member.isActive,
+    }));
+
     return NextResponse.json(
       {
         success: true,
         data: {
           officeId: office._id,
           officeName: office.name,
-          members: office.members,
+          members: membersWithId,
         },
       },
       { status: 200, headers: getCorsHeaders(origin) }
@@ -100,7 +115,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const origin = request.headers.get('origin');
   
@@ -146,7 +161,7 @@ export async function POST(
     // Connect to MongoDB
     await connectDB();
 
-    const officeId = params.id;
+    const { id: officeId } = await params;
 
     // Validate IDs
     if (!mongoose.Types.ObjectId.isValid(officeId)) {
@@ -234,7 +249,7 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const origin = request.headers.get('origin');
   
@@ -280,7 +295,7 @@ export async function DELETE(
     // Connect to MongoDB
     await connectDB();
 
-    const officeId = params.id;
+    const { id: officeId } = await params;
 
     // Validate IDs
     if (!mongoose.Types.ObjectId.isValid(officeId)) {

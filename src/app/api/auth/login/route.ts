@@ -82,20 +82,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user account is active
-    if (!user.isActive) {
-      return NextResponse.json(
-        { success: false, error: 'Account is deactivated. Please contact administrator.' },
-        { status: 403, headers: getCorsHeaders(origin) }
-      );
-    }
-
-    // Verify password
+    // Verify password first (before checking active status)
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return NextResponse.json(
         { success: false, error: 'Invalid username or password' },
         { status: 401, headers: getCorsHeaders(origin) }
+      );
+    }
+
+    // Check if user account is active (after password verification)
+    if (!user.isActive) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Account not activated', 
+          needsActivation: true,
+          email: user.email 
+        },
+        { status: 403, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -121,6 +126,7 @@ export async function POST(request: NextRequest) {
             role: user.role,
             badgeNumber: user.badgeNumber,
             department: user.department,
+            officeId: user.officeId ? user.officeId.toString() : null,
             isActive: user.isActive,
           },
           token,

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User, { UserRole } from '@/models/User';
-import { extractTokenFromHeader, verifyToken, hasMinimumRole } from '@/lib/auth';
+import { extractTokenFromHeader, verifyToken, hasMinimumRole, hasRole } from '@/lib/auth';
 
 /**
  * GET /api/users
- * Get all users (admin only)
+ * Get all users (admin and supervisor can access)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -28,10 +28,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user is admin
-    if (!hasMinimumRole(decoded.role, UserRole.ADMIN)) {
+    // Check if user is admin or supervisor
+    if (!hasRole(decoded.role, [UserRole.ADMIN, UserRole.SUPERVISOR])) {
       return NextResponse.json(
-        { success: false, error: 'Access denied. Admin privileges required.' },
+        { success: false, error: 'Access denied. Admin or Supervisor privileges required.' },
         { status: 403 }
       );
     }
@@ -59,10 +59,16 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .lean();
 
+    // Transform users to include id field
+    const usersWithId = users.map((user: any) => ({
+      ...user,
+      id: user._id.toString(),
+    }));
+
     return NextResponse.json(
       {
         success: true,
-        data: { users, total: users.length },
+        data: { users: usersWithId, total: usersWithId.length },
       },
       { status: 200 }
     );

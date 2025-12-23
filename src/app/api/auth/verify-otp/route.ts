@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import OTP from '@/models/OTP';
+import User from '@/models/User';
 import { handleCorsOptions, getCorsHeaders } from '@/lib/cors';
 
 /**
@@ -62,6 +63,14 @@ export async function POST(request: NextRequest) {
 
     // OTP is valid - delete it from database (one-time use)
     await OTP.deleteOne({ _id: otpDocument._id });
+
+    // Activate user account
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (user && !user.isActive) {
+      user.isActive = true;
+      await user.save();
+      console.log('✅ User account activated:', user.username);
+    }
 
     return NextResponse.json(
       {

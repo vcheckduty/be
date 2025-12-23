@@ -139,6 +139,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if user has been assigned to an office
+    if (!user.officeId) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'You have not been assigned to any office. Please contact your supervisor.' 
+        },
+        { status: 403 }
+      );
+    }
+
     // Get office details
     const office = await Office.findById(officeId);
     if (!office) {
