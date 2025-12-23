@@ -155,6 +155,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if user is a member of this office
+    const userObjectId = user._id;
+    const isMember = office.members.some((memberId) => 
+      memberId.toString() === userObjectId.toString()
+    );
+
+    if (!isMember) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'You are not authorized to check in at this office. Please contact your supervisor to be added as a member.' 
+        },
+        { status: 403 }
+      );
+    }
+
     // Calculate distance from office
     const distance = calculateDistance(
       lat,

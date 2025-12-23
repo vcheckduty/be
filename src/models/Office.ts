@@ -11,6 +11,8 @@ export interface IOffice extends Document {
     lng: number;
   };
   radius: number; // Check-in radius in meters
+  members: mongoose.Types.ObjectId[]; // Array of user IDs assigned to this office
+  supervisorId?: mongoose.Types.ObjectId; // Supervisor managing this office
   isActive: boolean;
   description?: string;
   createdAt: Date;
@@ -52,6 +54,17 @@ const OfficeSchema: Schema<IOffice> = new Schema(
       required: [true, 'Radius is required'],
       min: 1,
       default: 50, // Default 50 meters
+    },
+    members: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+    supervisorId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
     isActive: {
       type: Boolean,

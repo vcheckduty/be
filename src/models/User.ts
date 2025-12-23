@@ -21,6 +21,7 @@ export interface IUser extends Document {
   role: UserRole;
   badgeNumber?: string;
   department?: string;
+  officeId?: mongoose.Types.ObjectId; // Office assignment for members
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -77,6 +78,11 @@ const UserSchema: Schema<IUser> = new Schema(
     department: {
       type: String,
       trim: true,
+    },
+    officeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Office',
+      default: null,
     },
     isActive: {
       type: Boolean,
