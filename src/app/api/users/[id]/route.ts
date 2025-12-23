@@ -9,7 +9,7 @@ import { extractTokenFromHeader, verifyToken, hasMinimumRole } from '@/lib/auth'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Extract and verify JWT token
@@ -34,7 +34,8 @@ export async function GET(
     // Connect to MongoDB
     await connectDB();
 
-    const userId = params.id;
+    const { id } = await params;
+    const userId = id;
 
     // Users can view their own profile, admins can view any profile
     if (decoded.userId !== userId && !hasMinimumRole(decoded.role, UserRole.ADMIN)) {
@@ -81,7 +82,7 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Extract and verify JWT token
@@ -106,7 +107,8 @@ export async function PATCH(
     // Connect to MongoDB
     await connectDB();
 
-    const userId = params.id;
+    const { id } = await params;
+    const userId = id;
     const body = await request.json();
 
     const isAdmin = hasMinimumRole(decoded.role, UserRole.ADMIN);
@@ -194,7 +196,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Extract and verify JWT token
@@ -227,7 +229,8 @@ export async function DELETE(
     // Connect to MongoDB
     await connectDB();
 
-    const userId = params.id;
+    const { id } = await params;
+    const userId = id;
 
     // Prevent admin from deleting themselves
     if (decoded.userId === userId) {

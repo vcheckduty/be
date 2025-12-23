@@ -5,7 +5,7 @@ if (!process.env.JWT_SECRET) {
   throw new Error('Please define the JWT_SECRET environment variable inside .env.local');
 }
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 /**
  * Token payload interface
@@ -27,6 +27,7 @@ export function generateToken(
   payload: TokenPayload,
   expiresIn: string = '7d'
 ): string {
+  // @ts-ignore - JWT types issue with Next.js
   return jwt.sign(payload, JWT_SECRET, {
     expiresIn,
     issuer: 'vcheck-api',
