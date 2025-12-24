@@ -2,21 +2,23 @@ import nodemailer from 'nodemailer';
 
 // Create reusable transporter object using Gmail SMTP
 export const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false, // true for 465, false for other ports
   auth: {
-    user: process.env.GMAIL_USER, // Your Gmail address
-    pass: process.env.GMAIL_APP_PASSWORD, // App-specific password
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, ''), // Remove any whitespace
   },
+  tls: {
+    rejectUnauthorized: false,
+  },
+  connectionTimeout: 10000, // 10 seconds
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
 });
 
-// Verify transporter configuration
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ Nodemailer transporter error:', error);
-  } else {
-    console.log('✅ Nodemailer is ready to send emails');
-  }
-});
+// Note: Removed transporter.verify() to avoid connection timeout during startup
+// Verification will happen when actually sending emails
 
 /**
  * Send OTP email with professional template themed for Police Department
