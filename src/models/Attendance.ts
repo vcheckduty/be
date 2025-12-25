@@ -14,7 +14,14 @@ export interface IAttendance extends Document {
   };
   distance: number;
   status: 'Valid' | 'Invalid';
-  timestamp: Date;
+  checkinTime: Date;
+  checkoutTime?: Date;
+  checkoutLocation?: {
+    lat: number;
+    lng: number;
+  };
+  checkoutDistance?: number;
+  totalHours?: number;
 }
 
 /**
@@ -66,10 +73,38 @@ const AttendanceSchema: Schema<IAttendance> = new Schema(
       enum: ['Valid', 'Invalid'],
       required: [true, 'Status is required'],
     },
-    timestamp: {
+    checkinTime: {
       type: Date,
       default: Date.now,
       required: true,
+    },
+    checkoutTime: {
+      type: Date,
+      required: false,
+    },
+    checkoutLocation: {
+      lat: {
+        type: Number,
+        required: false,
+        min: -90,
+        max: 90,
+      },
+      lng: {
+        type: Number,
+        required: false,
+        min: -180,
+        max: 180,
+      },
+    },
+    checkoutDistance: {
+      type: Number,
+      required: false,
+      min: 0,
+    },
+    totalHours: {
+      type: Number,
+      required: false,
+      min: 0,
     },
   },
   {
@@ -78,9 +113,9 @@ const AttendanceSchema: Schema<IAttendance> = new Schema(
 );
 
 /**
- * Create index on timestamp for efficient queries
+ * Create index on checkinTime for efficient queries
  */
-AttendanceSchema.index({ timestamp: -1 });
+AttendanceSchema.index({ checkinTime: -1 });
 AttendanceSchema.index({ user: 1 });
 AttendanceSchema.index({ office: 1 });
 AttendanceSchema.index({ status: 1 });

@@ -44,17 +44,17 @@ function calculateDistance(
 }
 
 /**
- * Validate check-in request body
+ * Validate checkout request body
  */
-interface CheckInRequest {
+interface CheckOutRequest {
   officeId: string;
   lat: number;
   lng: number;
 }
 
-function validateCheckInRequest(body: any): {
+function validateCheckOutRequest(body: any): {
   isValid: boolean;
-  data?: CheckInRequest;
+  data?: CheckOutRequest;
   error?: string;
 } {
   if (!body) {
@@ -82,8 +82,8 @@ function validateCheckInRequest(body: any): {
 }
 
 /**
- * POST /api/checkin
- * Handles officer check-in requests (requires authentication)
+ * POST /api/checkout
+ * Handles officer checkout requests (requires authentication)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // Validate request data
-    const validation = validateCheckInRequest(body);
+    const validation = validateCheckOutRequest(body);
     if (!validation.isValid) {
       return NextResponse.json(
         { success: false, error: validation.error },
@@ -139,17 +139,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has been assigned to an office
-    if (!user.officeId) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'You have not been assigned to any office. Please contact your supervisor.' 
-        },
-        { status: 403 }
-      );
-    }
-
     // Get office details
     const office = await Office.findById(officeId);
     if (!office) {
@@ -166,129 +155,87 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user is a member of this office
-    const userObjectId = user._id;
-    const isMember = office.members.some((memberId) => 
-      memberId.toString() === userObjectId.toString()
-    );
+    // Find today's check-in record
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
 
-    if (!isMember) {
+    const todayAttendance = await Attendance.findOne({
+      user: user._id,
+      office: office._id,
+      checkinTime: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+    }).sort({ checkinTime: -1 });
+
+    if (!todayAttendance) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'You are not authorized to check in at this office. Please contact your supervisor to be added as a member.' 
+          error: 'No check-in record found for today. Please check in first.' 
         },
-        { status: 403 }
+        { status: 400 }
       );
     }
 
-    // Calculate distance from office
-    const distance = calculateDistance(
+    // Check if already checked out
+    if (todayAttendance.checkoutTime) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'You have already checked out today.' 
+        },
+        { status: 400 }
+      );
+    }
+
+    // Calculate distance from office for checkout
+    const checkoutDistance = calculateDistance(
       lat,
       lng,
       office.location.lat,
       office.location.lng
     );
 
-    // Check if distance is within allowed radius BEFORE checking existing checkin
-    if (distance > office.radius) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: `Bạn đang ở cách ${office.name} ${distance}m. Vui lòng đến gần hơn (trong vòng ${office.radius}m) để check-in.`,
-          data: {
-            distance,
-            maxDistance: office.radius,
-            officeName: office.name,
-          }
-        },
-        { status: 400 }
-      );
-    }
+    // Calculate total hours worked
+    const checkoutTime = new Date();
+    const checkinTime = new Date(todayAttendance.checkinTime);
+    const timeDifferenceMs = checkoutTime.getTime() - checkinTime.getTime();
+    const totalHours = Math.round((timeDifferenceMs / (1000 * 60 * 60)) * 100) / 100; // Round to 2 decimal places
 
-    // Check if user has already checked in today
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    // Update attendance record with checkout information
+    todayAttendance.checkoutTime = checkoutTime;
+    todayAttendance.checkoutLocation = { lat, lng };
+    todayAttendance.checkoutDistance = checkoutDistance;
+    todayAttendance.totalHours = totalHours;
+    await todayAttendance.save();
 
-    const existingCheckin = await Attendance.findOne({
-      user: user._id,
-      checkinTime: {
-        $gte: startOfDay,
-        $lte: endOfDay,
-      },
-    });
-
-    if (existingCheckin) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'You have already checked in today. Only one check-in per day is allowed.' 
-        },
-        { status: 400 }
-      );
-    }
-
-    // Only save to database if distance is valid
-    const attendance = await Attendance.create({
-      user: user._id,
-      office: office._id,
-      officerName: user.fullName,
-      officeName: office.name,
-      location: { lat, lng },
-      distance,
-      status: 'Valid', // Always Valid because we already checked distance above
-      checkinTime: new Date(),
-    });
-
-    // Return success response
     return NextResponse.json(
       {
         success: true,
+        message: 'Checkout successful',
         data: {
-          id: attendance._id,
-          userId: user._id,
-          officeId: office._id,
-          officerName: attendance.officerName,
-          officeName: attendance.officeName,
-          distance,
-          status: 'Valid',
-          checkinTime: attendance.checkinTime,
-          message: `Check-in successful at ${office.name}! You are ${distance}m away.`,
+          attendanceId: todayAttendance._id,
+          checkoutTime: checkoutTime,
+          checkoutDistance: checkoutDistance,
+          totalHours: totalHours,
+          checkinTime: checkinTime,
+          officeName: office.name,
+          status: todayAttendance.status,
         },
       },
-      { status: 201 }
+      { status: 200 }
     );
+
   } catch (error: any) {
-    console.error('❌ Check-in error:', error);
-
-    // Handle MongoDB validation errors
-    if (error.name === 'ValidationError') {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Validation error',
-          details: Object.values(error.errors).map((err: any) => err.message),
-        },
-        { status: 400 }
-      );
-    }
-
-    // Handle JSON parse errors
-    if (error instanceof SyntaxError) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid JSON in request body' },
-        { status: 400 }
-      );
-    }
-
-    // Generic server error
+    console.error('❌ Checkout error:', error);
+    
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error',
-        message: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        error: error.message || 'Failed to process checkout',
       },
       { status: 500 }
     );
