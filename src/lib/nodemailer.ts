@@ -1,40 +1,27 @@
 import nodemailer from 'nodemailer';
 
 // Create reusable transporter object using Gmail SMTP
-// Using port 465 with secure connection as fallback for port 587 issues
 export const transporter = nodemailer.createTransport({
-  service: 'gmail', // Using service instead of host/port for better compatibility
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, ''), // Remove any whitespace
-  },
-  pool: true, // Use pooled connections
-  maxConnections: 5,
-  maxMessages: 100,
-  rateDelta: 1000,
-  rateLimit: 5,
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
-
-// Alternative transporter configuration if service fails
-export const transporterAlt = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // true for 465
+  port: 587,
+  secure: false, // true for 465, false for other ports
   auth: {
     user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, ''),
+    pass: process.env.GMAIL_APP_PASSWORD,
   },
-  pool: true,
   tls: {
     rejectUnauthorized: false,
   },
 });
 
-// Note: Removed transporter.verify() to avoid connection timeout during startup
-// Verification will happen when actually sending emails
+// Verify connection configuration
+transporter.verify(function (error, success) {
+  if (error) {
+    console.log('❌ SMTP connection error:', error);
+  } else {
+    console.log('✅ Server is ready to send emails');
+  }
+});
 
 /**
  * Send OTP email with professional template themed for Police Department
@@ -121,27 +108,11 @@ export async function sendOTPEmail(email: string, code: string) {
   };
 
   try {
-    // Try primary transporter first
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ OTP email sent:', info.messageId);
+    console.log('✅ OTP email sent successfully:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('❌ Primary transporter failed, trying alternative...', error);
-    
-    // Try alternative transporter
-    try {
-      const info = await transporterAlt.sendMail(mailOptions);
-      console.log('✅ OTP email sent via alternative transporter:', info.messageId);
-      return { success: true, messageId: info.messageId };
-    } catch (altError) {
-      console.error('❌ Both transporters failed:', altError);
-      
-      // Check if credentials are configured
-      if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-        throw new Error('Gmail credentials not configured. Please set GMAIL_USER and GMAIL_APP_PASSWORD in .env.local');
-      }
-      
-      throw new Error('Failed to send email. Please check your Gmail App Password and network connection.');
-    }
+    console.error('❌ Failed to send OTP email:', error);
+    throw new Error('Failed to send email. Please check your email configuration.');
   }
 }
