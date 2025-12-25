@@ -22,6 +22,8 @@ export interface IAttendance extends Document {
   };
   checkoutDistance?: number;
   totalHours?: number;
+  checkinPhoto?: string; // Base64 encoded photo
+  checkoutPhoto?: string; // Base64 encoded photo
 }
 
 /**
@@ -105,6 +107,14 @@ const AttendanceSchema: Schema<IAttendance> = new Schema(
       type: Number,
       required: false,
       min: 0,
+    },
+    checkinPhoto: {
+      type: String,
+      required: false,
+    },
+    checkoutPhoto: {
+      type: String,
+      required: false,
     },
   },
   {

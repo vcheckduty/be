@@ -50,6 +50,7 @@ interface CheckInRequest {
   officeId: string;
   lat: number;
   lng: number;
+  photo?: string; // Base64 encoded photo (optional)
 }
 
 function validateCheckInRequest(body: any): {
@@ -119,6 +120,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { officeId, lat, lng } = validation.data!;
+  const photo = body.photo; // Optional photo
 
     // Connect to MongoDB
     await connectDB();
@@ -240,6 +242,7 @@ export async function POST(request: NextRequest) {
       distance,
       status: 'Valid', // Always Valid because we already checked distance above
       checkinTime: new Date(),
+      checkinPhoto: photo, // Save photo if provided
     });
 
     // Return success response
