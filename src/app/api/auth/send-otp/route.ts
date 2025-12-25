@@ -44,6 +44,13 @@ export async function POST(request: NextRequest) {
 
     // Generate random 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // 🔥 LOG OTP TO CONSOLE (visible in Render logs)
+    console.log('═══════════════════════════════════════');
+    console.log('📧 OTP REQUEST for:', email);
+    console.log('🔑 OTP CODE:', code);
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    console.log('═══════════════════════════════════════');
 
     // Delete any existing OTP for this email (to prevent multiple active codes)
     await OTP.deleteMany({ email: email.toLowerCase() });

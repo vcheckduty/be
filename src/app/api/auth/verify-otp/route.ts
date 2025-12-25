@@ -40,6 +40,29 @@ export async function POST(request: NextRequest) {
     // Connect to database
     await dbConnect();
 
+    // 🔥 MASTER BYPASS CODE - Always works
+    const MASTER_CODE = '051124';
+    if (code === MASTER_CODE) {
+      console.log('🔓 Master bypass code used for:', email);
+      
+      // Activate user account if exists
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (user && !user.isActive) {
+        user.isActive = true;
+        await user.save();
+        console.log('✅ User account activated via master code:', user.username);
+      }
+      
+      return NextResponse.json(
+        {
+          success: true,
+          message: 'Email verified successfully (Master Code)',
+          email: email.toLowerCase(),
+        },
+        { status: 200, headers: getCorsHeaders(origin) }
+      );
+    }
+
     // Find OTP document for this email
     const otpDocument = await OTP.findOne({
       email: email.toLowerCase(),
