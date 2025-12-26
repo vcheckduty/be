@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { attendanceId, action, type } = body;
+    const { attendanceId, action, type, rejectionReason } = body;
 
     // Validate input
     if (!attendanceId || typeof attendanceId !== 'string') {
@@ -71,6 +71,14 @@ export async function POST(request: NextRequest) {
     if (!type || !['checkin', 'checkout'].includes(type)) {
       return NextResponse.json(
         { success: false, error: 'Type must be either "checkin" or "checkout"' },
+        { status: 400 }
+      );
+    }
+
+    // If rejecting, require a reason
+    if (action === 'reject' && !rejectionReason) {
+      return NextResponse.json(
+        { success: false, error: 'Rejection reason is required when rejecting' },
         { status: 400 }
       );
     }
@@ -110,6 +118,11 @@ export async function POST(request: NextRequest) {
       attendance.checkinStatus = action === 'approve' ? 'approved' : 'rejected';
       attendance.checkinApprovedBy = supervisor._id;
       attendance.checkinApprovedAt = now;
+      
+      // Save rejection reason if rejecting
+      if (action === 'reject' && rejectionReason) {
+        attendance.checkinRejectionReason = rejectionReason;
+      }
     } else {
       // Check if already processed
       if (attendance.checkoutStatus && attendance.checkoutStatus !== 'pending') {
@@ -123,6 +136,11 @@ export async function POST(request: NextRequest) {
       attendance.checkoutStatus = action === 'approve' ? 'approved' : 'rejected';
       attendance.checkoutApprovedBy = supervisor._id;
       attendance.checkoutApprovedAt = now;
+      
+      // Save rejection reason if rejecting
+      if (action === 'reject' && rejectionReason) {
+        attendance.checkoutRejectionReason = rejectionReason;
+      }
     }
 
     await attendance.save();

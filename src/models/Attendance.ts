@@ -19,6 +19,7 @@ export interface IAttendance extends Document {
   checkinStatus: 'pending' | 'approved' | 'rejected';
   checkinApprovedBy?: Types.ObjectId; // Supervisor who approved/rejected
   checkinApprovedAt?: Date;
+  checkinRejectionReason?: string; // Reason for rejection from supervisor
   checkinTime: Date;
   checkinPhoto?: string; // Base64 encoded photo
   checkinReason?: string; // Reason if out of range
@@ -28,6 +29,7 @@ export interface IAttendance extends Document {
   checkoutStatus?: 'pending' | 'approved' | 'rejected';
   checkoutApprovedBy?: Types.ObjectId; // Supervisor who approved/rejected
   checkoutApprovedAt?: Date;
+  checkoutRejectionReason?: string; // Reason for rejection from supervisor
   checkoutTime?: Date;
   checkoutLocation?: {
     lat: number;
@@ -106,6 +108,10 @@ const AttendanceSchema: Schema<IAttendance> = new Schema(
       type: Date,
       required: false,
     },
+    checkinRejectionReason: {
+      type: String,
+      required: false,
+    },
     checkinTime: {
       type: Date,
       default: Date.now,
@@ -136,6 +142,10 @@ const AttendanceSchema: Schema<IAttendance> = new Schema(
     },
     checkoutApprovedAt: {
       type: Date,
+      required: false,
+    },
+    checkoutRejectionReason: {
+      type: String,
       required: false,
     },
     checkoutTime: {
