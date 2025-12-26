@@ -14,16 +14,31 @@ export interface IAttendance extends Document {
   };
   distance: number;
   status: 'Valid' | 'Invalid';
+  
+  // Check-in approval workflow
+  checkinStatus: 'pending' | 'approved' | 'rejected';
+  checkinApprovedBy?: Types.ObjectId; // Supervisor who approved/rejected
+  checkinApprovedAt?: Date;
   checkinTime: Date;
+  checkinPhoto?: string; // Base64 encoded photo
+  checkinReason?: string; // Reason if out of range
+  checkinReasonPhoto?: string; // Additional photo for reason
+  
+  // Check-out approval workflow
+  checkoutStatus?: 'pending' | 'approved' | 'rejected';
+  checkoutApprovedBy?: Types.ObjectId; // Supervisor who approved/rejected
+  checkoutApprovedAt?: Date;
   checkoutTime?: Date;
   checkoutLocation?: {
     lat: number;
     lng: number;
   };
   checkoutDistance?: number;
-  totalHours?: number;
-  checkinPhoto?: string; // Base64 encoded photo
   checkoutPhoto?: string; // Base64 encoded photo
+  checkoutReason?: string; // Reason if out of range
+  checkoutReasonPhoto?: string; // Additional photo for reason
+  
+  totalHours?: number;
 }
 
 /**
@@ -75,10 +90,53 @@ const AttendanceSchema: Schema<IAttendance> = new Schema(
       enum: ['Valid', 'Invalid'],
       required: [true, 'Status is required'],
     },
+    // Check-in approval workflow
+    checkinStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+      required: true,
+    },
+    checkinApprovedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+    },
+    checkinApprovedAt: {
+      type: Date,
+      required: false,
+    },
     checkinTime: {
       type: Date,
       default: Date.now,
       required: true,
+    },
+    checkinPhoto: {
+      type: String,
+      required: false,
+    },
+    checkinReason: {
+      type: String,
+      required: false,
+    },
+    checkinReasonPhoto: {
+      type: String,
+      required: false,
+    },
+    // Check-out approval workflow
+    checkoutStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      required: false,
+    },
+    checkoutApprovedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+    },
+    checkoutApprovedAt: {
+      type: Date,
+      required: false,
     },
     checkoutTime: {
       type: Date,
@@ -103,18 +161,22 @@ const AttendanceSchema: Schema<IAttendance> = new Schema(
       required: false,
       min: 0,
     },
+    checkoutPhoto: {
+      type: String,
+      required: false,
+    },
+    checkoutReason: {
+      type: String,
+      required: false,
+    },
+    checkoutReasonPhoto: {
+      type: String,
+      required: false,
+    },
     totalHours: {
       type: Number,
       required: false,
       min: 0,
-    },
-    checkinPhoto: {
-      type: String,
-      required: false,
-    },
-    checkoutPhoto: {
-      type: String,
-      required: false,
     },
   },
   {
@@ -129,6 +191,8 @@ AttendanceSchema.index({ checkinTime: -1 });
 AttendanceSchema.index({ user: 1 });
 AttendanceSchema.index({ office: 1 });
 AttendanceSchema.index({ status: 1 });
+AttendanceSchema.index({ checkinStatus: 1 });
+AttendanceSchema.index({ checkoutStatus: 1 });
 
 /**
  * Prevent model recompilation during hot reload in development

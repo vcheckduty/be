@@ -59,21 +59,21 @@ function validateCheckOutRequest(body: any): {
   error?: string;
 } {
   if (!body) {
-    return { isValid: false, error: 'Request body is required' };
+    return { isValid: false, error: 'Thiếu dữ liệu yêu cầu' };
   }
 
   const { officeId, lat, lng } = body;
 
   if (!officeId || typeof officeId !== 'string') {
-    return { isValid: false, error: 'Office ID is required' };
+    return { isValid: false, error: 'Yêu cầu ID trụ sở' };
   }
 
   if (typeof lat !== 'number' || isNaN(lat) || lat < -90 || lat > 90) {
-    return { isValid: false, error: 'Valid latitude is required (-90 to 90)' };
+    return { isValid: false, error: 'Kinh độ không hợp lệ (-90 đến 90)' };
   }
 
   if (typeof lng !== 'number' || isNaN(lng) || lng < -180 || lng > 180) {
-    return { isValid: false, error: 'Valid longitude is required (-180 to 180)' };
+    return { isValid: false, error: 'Vĩ độ không hợp lệ (-180 đến 180)' };
   }
 
   return {
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     if (!token) {
       return NextResponse.json(
-        { success: false, error: 'Authorization token is required' },
+        { success: false, error: 'Yêu cầu token xác thực' },
         { status: 401 }
       );
     }
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     const decoded = verifyToken(token);
     if (!decoded) {
       return NextResponse.json(
-        { success: false, error: 'Invalid or expired token' },
+        { success: false, error: 'Token không hợp lệ hoặc đã hết hạn' },
         { status: 401 }
       );
     }
@@ -129,14 +129,14 @@ export async function POST(request: NextRequest) {
     const user = await User.findById(decoded.userId);
     if (!user) {
       return NextResponse.json(
-        { success: false, error: 'User not found' },
+        { success: false, error: 'Không tìm thấy người dùng' },
         { status: 404 }
       );
     }
 
     if (!user.isActive) {
       return NextResponse.json(
-        { success: false, error: 'Account is deactivated' },
+        { success: false, error: 'Tài khoản đã bị vô hiệu hóa' },
         { status: 403 }
       );
     }
@@ -145,14 +145,14 @@ export async function POST(request: NextRequest) {
     const office = await Office.findById(officeId);
     if (!office) {
       return NextResponse.json(
-        { success: false, error: 'Office not found' },
+        { success: false, error: 'Không tìm thấy trụ sở' },
         { status: 404 }
       );
     }
 
     if (!office.isActive) {
       return NextResponse.json(
-        { success: false, error: 'Office is not active' },
+        { success: false, error: 'Trụ sở không hoạt động' },
         { status: 403 }
       );
     }
@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'No check-in record found for today. Please check in first.' 
+          error: 'Không tìm thấy bản ghi chấm công hôm nay. Vui lòng chấm công vào trước.' 
         },
         { status: 400 }
       );
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'You have already checked out today.' 
+          error: 'Bạn đã kết thúc ca làm hôm nay rồi.' 
         },
         { status: 400 }
       );
@@ -201,6 +201,10 @@ export async function POST(request: NextRequest) {
       office.location.lng
     );
 
+    // Determine if within range
+    const isWithinRange = checkoutDistance <= office.radius;
+    const checkoutStatus = 'pending'; // Always pending, waiting for supervisor approval
+
     // Calculate total hours worked
     const checkoutTime = new Date();
     const checkinTime = new Date(todayAttendance.checkinTime);
@@ -211,22 +215,32 @@ export async function POST(request: NextRequest) {
     todayAttendance.checkoutTime = checkoutTime;
     todayAttendance.checkoutLocation = { lat, lng };
     todayAttendance.checkoutDistance = checkoutDistance;
+    todayAttendance.checkoutStatus = checkoutStatus;
     todayAttendance.totalHours = totalHours;
     todayAttendance.checkoutPhoto = photo; // Save photo if provided
     await todayAttendance.save();
 
+    // Return appropriate message based on distance
+    const message = isWithinRange
+      ? `Check-out submitted successfully! You are ${checkoutDistance}m away from ${office.name}. Waiting for supervisor approval.`
+      : `Check-out submitted but you are ${checkoutDistance}m away from ${office.name} (required: within ${office.radius}m). Please provide a reason. Waiting for supervisor approval.`;
+
     return NextResponse.json(
       {
         success: true,
-        message: 'Checkout successful',
+        message,
         data: {
           attendanceId: todayAttendance._id,
           checkoutTime: checkoutTime,
           checkoutDistance: checkoutDistance,
+          checkoutStatus,
+          isWithinRange,
+          requiredRadius: office.radius,
           totalHours: totalHours,
           checkinTime: checkinTime,
           officeName: office.name,
           status: todayAttendance.status,
+          needsReason: !isWithinRange,
         },
       },
       { status: 200 }
@@ -238,7 +252,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Failed to process checkout',
+        error: error.message || 'Xử lý kết thúc ca làm thất bại',
       },
       { status: 500 }
     );

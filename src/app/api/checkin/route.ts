@@ -59,21 +59,21 @@ function validateCheckInRequest(body: any): {
   error?: string;
 } {
   if (!body) {
-    return { isValid: false, error: 'Request body is required' };
+    return { isValid: false, error: 'Thiếu dữ liệu yêu cầu' };
   }
 
   const { officeId, lat, lng } = body;
 
   if (!officeId || typeof officeId !== 'string') {
-    return { isValid: false, error: 'Office ID is required' };
+    return { isValid: false, error: 'Yêu cầu ID trụ sở' };
   }
 
   if (typeof lat !== 'number' || isNaN(lat) || lat < -90 || lat > 90) {
-    return { isValid: false, error: 'Valid latitude is required (-90 to 90)' };
+    return { isValid: false, error: 'Kinh độ không hợp lệ (-90 đến 90)' };
   }
 
   if (typeof lng !== 'number' || isNaN(lng) || lng < -180 || lng > 180) {
-    return { isValid: false, error: 'Valid longitude is required (-180 to 180)' };
+    return { isValid: false, error: 'Vĩ độ không hợp lệ (-180 đến 180)' };
   }
 
   return {
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     if (!token) {
       return NextResponse.json(
-        { success: false, error: 'Authorization token is required' },
+        { success: false, error: 'Yêu cầu token xác thực' },
         { status: 401 }
       );
     }
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     const decoded = verifyToken(token);
     if (!decoded) {
       return NextResponse.json(
-        { success: false, error: 'Invalid or expired token' },
+        { success: false, error: 'Token không hợp lệ hoặc đã hết hạn' },
         { status: 401 }
       );
     }
@@ -129,14 +129,14 @@ export async function POST(request: NextRequest) {
     const user = await User.findById(decoded.userId);
     if (!user) {
       return NextResponse.json(
-        { success: false, error: 'User not found' },
+        { success: false, error: 'Không tìm thấy người dùng' },
         { status: 404 }
       );
     }
 
     if (!user.isActive) {
       return NextResponse.json(
-        { success: false, error: 'Account is deactivated' },
+        { success: false, error: 'Tài khoản đã bị vô hiệu hóa' },
         { status: 403 }
       );
     }
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'You have not been assigned to any office. Please contact your supervisor.' 
+          error: 'Bạn chưa được phân công vào trụ sở nào. Vui lòng liên hệ người giám sát.' 
         },
         { status: 403 }
       );
@@ -156,14 +156,14 @@ export async function POST(request: NextRequest) {
     const office = await Office.findById(officeId);
     if (!office) {
       return NextResponse.json(
-        { success: false, error: 'Office not found' },
+        { success: false, error: 'Không tìm thấy trụ sở' },
         { status: 404 }
       );
     }
 
     if (!office.isActive) {
       return NextResponse.json(
-        { success: false, error: 'Office is not active' },
+        { success: false, error: 'Trụ sở không hoạt động' },
         { status: 403 }
       );
     }
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'You are not authorized to check in at this office. Please contact your supervisor to be added as a member.' 
+          error: 'Bạn không được phép chấm công tại trụ sở này. Vui lòng liên hệ người giám sát để được thêm vào danh sách thành viên.' 
         },
         { status: 403 }
       );
@@ -192,21 +192,10 @@ export async function POST(request: NextRequest) {
       office.location.lng
     );
 
-    // Check if distance is within allowed radius BEFORE checking existing checkin
-    if (distance > office.radius) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: `Bạn đang ở cách ${office.name} ${distance}m. Vui lòng đến gần hơn (trong vòng ${office.radius}m) để check-in.`,
-          data: {
-            distance,
-            maxDistance: office.radius,
-            officeName: office.name,
-          }
-        },
-        { status: 400 }
-      );
-    }
+    // Determine if within range
+    const isWithinRange = distance <= office.radius;
+    const status = isWithinRange ? 'Valid' : 'Invalid';
+    const checkinStatus = 'pending'; // Always pending, waiting for supervisor approval
 
     // Check if user has already checked in today
     const startOfDay = new Date();
@@ -226,13 +215,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'You have already checked in today. Only one check-in per day is allowed.' 
+          error: 'Bạn đã chấm công hôm nay rồi. Mỗi ngày chỉ được chấm công một lần.' 
         },
         { status: 400 }
       );
     }
 
-    // Only save to database if distance is valid
+    // Save attendance record (even if out of range)
     const attendance = await Attendance.create({
       user: user._id,
       office: office._id,
@@ -240,12 +229,17 @@ export async function POST(request: NextRequest) {
       officeName: office.name,
       location: { lat, lng },
       distance,
-      status: 'Valid', // Always Valid because we already checked distance above
+      status,
+      checkinStatus,
       checkinTime: new Date(),
-      checkinPhoto: photo, // Save photo if provided
+      checkinPhoto: photo,
     });
 
-    // Return success response
+    // Return appropriate message based on distance
+    const message = isWithinRange
+      ? `Chấm công thành công tại ${office.name}! Bạn cách ${distance}m. Đang chờ người giám sát phê duyệt.`
+      : `Đã gửi chấm công nhưng bạn cách ${distance}m từ ${office.name} (yêu cầu: trong vòng ${office.radius}m). Vui lòng cung cấp lý do. Đang chờ người giám sát phê duyệt.`;
+
     return NextResponse.json(
       {
         success: true,
@@ -256,9 +250,13 @@ export async function POST(request: NextRequest) {
           officerName: attendance.officerName,
           officeName: attendance.officeName,
           distance,
-          status: 'Valid',
+          status,
+          checkinStatus,
+          isWithinRange,
+          requiredRadius: office.radius,
           checkinTime: attendance.checkinTime,
-          message: `Check-in successful at ${office.name}! You are ${distance}m away.`,
+          message,
+          needsReason: !isWithinRange,
         },
       },
       { status: 201 }
@@ -271,7 +269,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Validation error',
+          error: 'Lỗi xác thực dữ liệu',
           details: Object.values(error.errors).map((err: any) => err.message),
         },
         { status: 400 }
@@ -281,7 +279,7 @@ export async function POST(request: NextRequest) {
     // Handle JSON parse errors
     if (error instanceof SyntaxError) {
       return NextResponse.json(
-        { success: false, error: 'Invalid JSON in request body' },
+        { success: false, error: 'Dữ liệu JSON không hợp lệ' },
         { status: 400 }
       );
     }
@@ -290,7 +288,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error',
+        error: 'Lỗi máy chủ nội bộ',
         message: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
