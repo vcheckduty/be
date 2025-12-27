@@ -3,10 +3,11 @@ const { parse } = require('url');
 const next = require('next');
 const { Server } = require('socket.io');
 const mongoose = require('mongoose');
+const cors = require('cors');
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = '0.0.0.0'; // Listen on all interfaces for deployment
-const port = parseInt(process.env.PORT || '3000', 10);
+const port = parseInt(process.env.PORT || '3001', 10);
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -14,53 +15,44 @@ const handle = app.getRequestHandler();
 // Models will be loaded dynamically after mongoose connection
 let Message, User, Conversation;
 
+// Configure CORS
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    process.env.FRONTEND_URL,
+  ].filter(Boolean),
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+const corsMiddleware = cors(corsOptions);
+
 app.prepare().then(() => {
-  const httpServer = createServer(async (req, res) => {
-    try {
-      const parsedUrl = parse(req.url, true);
-      
-      // CORS handling
-      const origin = req.headers.origin;
-      const allowedOrigins = [
-        'http://localhost:3001',
-        'http://localhost:3000',
-        'https://vcheck-fe.onrender.com',
-        process.env.FRONTEND_URL
-      ].filter(Boolean);
-      
-      // Always set CORS headers for allowed origins
-      if (origin && (allowedOrigins.includes(origin) || origin.startsWith('http://localhost:'))) {
-        res.setHeader('Access-Control-Allow-Origin', origin);
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
-        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
-      }
-      
-      if (req.method === 'OPTIONS') {
-        res.statusCode = 200;
-        res.end();
+  const httpServer = createServer((req, res) => {
+    // Handle CORS
+    corsMiddleware(req, res, async (err) => {
+      if (err) {
+        res.statusCode = 500;
+        res.end('Internal Server Error');
         return;
       }
 
-      await handle(req, res, parsedUrl);
-    } catch (err) {
-      console.error('Error occurred handling', req.url, err);
-      res.statusCode = 500;
-      res.end('internal server error');
-    }
+      try {
+        const parsedUrl = parse(req.url, true);
+        await handle(req, res, parsedUrl);
+      } catch (err) {
+        console.error('Error occurred handling', req.url, err);
+        res.statusCode = 500;
+        res.end('internal server error');
+      }
+    });
   });
 
-  // Initialize Socket.io
+  // Initialize Socket.io with same CORS settings
   const io = new Server(httpServer, {
-    cors: {
-      origin: [
-        'http://localhost:3001',
-        'https://vcheck-fe.onrender.com',
-        process.env.FRONTEND_URL,
-      ].filter(Boolean),
-      methods: ['GET', 'POST'],
-      credentials: true,
-    },
+    cors: corsOptions,
   });
 
   // Connect to MongoDB
