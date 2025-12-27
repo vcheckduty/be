@@ -4,6 +4,15 @@ import Attendance from '@/models/Attendance';
 import User from '@/models/User';
 import Office from '@/models/Office';
 import { extractTokenFromHeader, verifyToken } from '@/lib/auth';
+import { handleCorsOptions, getCorsHeaders } from '@/lib/cors';
+
+/**
+ * OPTIONS handler
+ * Handle CORS preflight request
+ */
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsOptions(request);
+}
 
 /**
  * Calculate distance between two geographic coordinates using Haversine formula
@@ -87,6 +96,7 @@ function validateCheckOutRequest(body: any): {
  * Handles officer checkout requests (requires authentication)
  */
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin');
   try {
     // Extract and verify JWT token
     const authHeader = request.headers.get('authorization');
@@ -95,7 +105,7 @@ export async function POST(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Yêu cầu token xác thực' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -103,7 +113,7 @@ export async function POST(request: NextRequest) {
     if (!decoded) {
       return NextResponse.json(
         { success: false, error: 'Token không hợp lệ hoặc đã hết hạn' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -115,7 +125,7 @@ export async function POST(request: NextRequest) {
     if (!validation.isValid) {
       return NextResponse.json(
         { success: false, error: validation.error },
-        { status: 400 }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -130,14 +140,14 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'Không tìm thấy người dùng' },
-        { status: 404 }
+        { status: 404, headers: getCorsHeaders(origin) }
       );
     }
 
     if (!user.isActive) {
       return NextResponse.json(
         { success: false, error: 'Tài khoản đã bị vô hiệu hóa' },
-        { status: 403 }
+        { status: 403, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -146,14 +156,14 @@ export async function POST(request: NextRequest) {
     if (!office) {
       return NextResponse.json(
         { success: false, error: 'Không tìm thấy trụ sở' },
-        { status: 404 }
+        { status: 404, headers: getCorsHeaders(origin) }
       );
     }
 
     if (!office.isActive) {
       return NextResponse.json(
         { success: false, error: 'Trụ sở không hoạt động' },
-        { status: 403 }
+        { status: 403, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -178,7 +188,7 @@ export async function POST(request: NextRequest) {
           success: false, 
           error: 'Không tìm thấy bản ghi chấm công hôm nay. Vui lòng chấm công vào trước.' 
         },
-        { status: 400 }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -189,7 +199,7 @@ export async function POST(request: NextRequest) {
           success: false, 
           error: 'Bạn đã kết thúc ca làm hôm nay rồi.' 
         },
-        { status: 400 }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -243,7 +253,7 @@ export async function POST(request: NextRequest) {
           needsReason: !isWithinRange,
         },
       },
-      { status: 200 }
+      { status: 200, headers: getCorsHeaders(origin) }
     );
 
   } catch (error: any) {
@@ -254,7 +264,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: error.message || 'Xử lý kết thúc ca làm thất bại',
       },
-      { status: 500 }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }

@@ -3,12 +3,22 @@ import connectDB from '@/lib/mongodb';
 import Attendance from '@/models/Attendance';
 import User from '@/models/User';
 import { extractTokenFromHeader, verifyToken } from '@/lib/auth';
+import { handleCorsOptions, getCorsHeaders } from '@/lib/cors';
+
+/**
+ * OPTIONS handler
+ * Handle CORS preflight request
+ */
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsOptions(request);
+}
 
 /**
  * POST /api/attendance/reason
  * Officer adds reason and photo for out-of-range check-in/check-out
  */
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin');
   try {
     // Extract and verify JWT token
     const authHeader = request.headers.get('authorization');
@@ -17,7 +27,7 @@ export async function POST(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Authorization token is required' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -25,7 +35,7 @@ export async function POST(request: NextRequest) {
     if (!decoded) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -37,7 +47,7 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
-        { status: 404 }
+        { status: 404, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -49,21 +59,21 @@ export async function POST(request: NextRequest) {
     if (!attendanceId || typeof attendanceId !== 'string') {
       return NextResponse.json(
         { success: false, error: 'Attendance ID is required' },
-        { status: 400 }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
     if (!type || !['checkin', 'checkout'].includes(type)) {
       return NextResponse.json(
         { success: false, error: 'Type must be either "checkin" or "checkout"' },
-        { status: 400 }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
     if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
       return NextResponse.json(
         { success: false, error: 'Reason is required' },
-        { status: 400 }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -72,7 +82,7 @@ export async function POST(request: NextRequest) {
     if (!attendance) {
       return NextResponse.json(
         { success: false, error: 'Attendance record not found' },
-        { status: 404 }
+        { status: 404, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -80,7 +90,7 @@ export async function POST(request: NextRequest) {
     if (attendance.user.toString() !== user._id.toString()) {
       return NextResponse.json(
         { success: false, error: 'You can only add reason to your own attendance' },
-        { status: 403 }
+        { status: 403, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -110,7 +120,7 @@ export async function POST(request: NextRequest) {
           hasReasonPhoto: !!reasonPhoto,
         },
       },
-      { status: 200 }
+      { status: 200, headers: getCorsHeaders(origin) }
     );
   } catch (error: any) {
     console.error('❌ Add reason error:', error);
@@ -119,7 +129,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: error.message || 'Failed to add reason',
       },
-      { status: 500 }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }

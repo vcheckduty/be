@@ -2,12 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User, { UserRole } from '@/models/User';
 import { extractTokenFromHeader, verifyToken, hasMinimumRole, hasRole } from '@/lib/auth';
+import { handleCorsOptions, getCorsHeaders } from '@/lib/cors';
+
+/**
+ * OPTIONS handler
+ * Handle CORS preflight request
+ */
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsOptions(request);
+}
 
 /**
  * GET /api/users
  * Get all users (admin and supervisor can access)
  */
 export async function GET(request: NextRequest) {
+  const origin = request.headers.get('origin');
   try {
     // Extract and verify JWT token
     const authHeader = request.headers.get('authorization');
@@ -16,7 +26,7 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Authorization token is required' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -24,7 +34,7 @@ export async function GET(request: NextRequest) {
     if (!decoded) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -32,7 +42,7 @@ export async function GET(request: NextRequest) {
     if (!hasRole(decoded.role, [UserRole.ADMIN, UserRole.SUPERVISOR])) {
       return NextResponse.json(
         { success: false, error: 'Access denied. Admin or Supervisor privileges required.' },
-        { status: 403 }
+        { status: 403, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -70,7 +80,7 @@ export async function GET(request: NextRequest) {
         success: true,
         data: { users: usersWithId, total: usersWithId.length },
       },
-      { status: 200 }
+      { status: 200, headers: getCorsHeaders(origin) }
     );
   } catch (error: any) {
     console.error('❌ Get users error:', error);
@@ -81,7 +91,7 @@ export async function GET(request: NextRequest) {
         error: 'Internal server error',
         message: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
-      { status: 500 }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }

@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User, { UserRole } from '@/models/User';
 import { extractTokenFromHeader, verifyToken, hasMinimumRole } from '@/lib/auth';
+import { handleCorsOptions, getCorsHeaders } from '@/lib/cors';
+
+/**
+ * OPTIONS handler
+ * Handle CORS preflight request
+ */
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsOptions(request);
+}
 
 /**
  * GET /api/users/[id]
@@ -19,7 +28,7 @@ export async function GET(
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Authorization token is required' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -27,7 +36,7 @@ export async function GET(
     if (!decoded) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -41,7 +50,7 @@ export async function GET(
     if (decoded.userId !== userId && !hasMinimumRole(decoded.role, UserRole.ADMIN)) {
       return NextResponse.json(
         { success: false, error: 'Access denied' },
-        { status: 403 }
+        { status: 403, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -51,7 +60,7 @@ export async function GET(
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
-        { status: 404 }
+        { status: 404, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -60,7 +69,7 @@ export async function GET(
         success: true,
         data: { user },
       },
-      { status: 200 }
+      { status: 200, headers: getCorsHeaders(origin) }
     );
   } catch (error: any) {
     console.error('❌ Get user error:', error);
@@ -71,7 +80,7 @@ export async function GET(
         error: 'Internal server error',
         message: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
-      { status: 500 }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }
@@ -92,7 +101,7 @@ export async function PATCH(
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Authorization token is required' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -100,7 +109,7 @@ export async function PATCH(
     if (!decoded) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -117,7 +126,7 @@ export async function PATCH(
     if (!isAdmin && !isOwnProfile) {
       return NextResponse.json(
         { success: false, error: 'Access denied' },
-        { status: 403 }
+        { status: 403, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -138,7 +147,7 @@ export async function PATCH(
     if (updateData.role && !Object.values(UserRole).includes(updateData.role)) {
       return NextResponse.json(
         { success: false, error: 'Invalid role specified' },
-        { status: 400 }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -152,7 +161,7 @@ export async function PATCH(
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
-        { status: 404 }
+        { status: 404, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -162,7 +171,7 @@ export async function PATCH(
         message: 'User updated successfully',
         data: { user },
       },
-      { status: 200 }
+      { status: 200, headers: getCorsHeaders(origin) }
     );
   } catch (error: any) {
     console.error('❌ Update user error:', error);
@@ -175,7 +184,7 @@ export async function PATCH(
           error: 'Validation error',
           details: Object.values(error.errors).map((err: any) => err.message),
         },
-        { status: 400 }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -185,7 +194,7 @@ export async function PATCH(
         error: 'Internal server error',
         message: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
-      { status: 500 }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }
@@ -206,7 +215,7 @@ export async function DELETE(
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Authorization token is required' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -214,7 +223,7 @@ export async function DELETE(
     if (!decoded) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -222,7 +231,7 @@ export async function DELETE(
     if (!hasMinimumRole(decoded.role, UserRole.ADMIN)) {
       return NextResponse.json(
         { success: false, error: 'Access denied. Admin privileges required.' },
-        { status: 403 }
+        { status: 403, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -236,7 +245,7 @@ export async function DELETE(
     if (decoded.userId === userId) {
       return NextResponse.json(
         { success: false, error: 'Cannot delete your own account' },
-        { status: 400 }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -246,7 +255,7 @@ export async function DELETE(
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
-        { status: 404 }
+        { status: 404, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -255,7 +264,7 @@ export async function DELETE(
         success: true,
         message: 'User deleted successfully',
       },
-      { status: 200 }
+      { status: 200, headers: getCorsHeaders(origin) }
     );
   } catch (error: any) {
     console.error('❌ Delete user error:', error);
@@ -266,7 +275,7 @@ export async function DELETE(
         error: 'Internal server error',
         message: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
-      { status: 500 }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }

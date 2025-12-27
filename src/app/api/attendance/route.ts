@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Attendance from '@/models/Attendance';
 import { extractTokenFromHeader, verifyToken, hasMinimumRole } from '@/lib/auth';
+import { handleCorsOptions, getCorsHeaders } from '@/lib/cors';
+
+/**
+ * OPTIONS handler
+ * Handle CORS preflight request
+ */
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsOptions(request);
+}
 import { UserRole } from '@/models/User';
 
 /**
@@ -16,6 +25,7 @@ import { UserRole } from '@/models/User';
  * - page: Page number for pagination (default: 1)
  */
 export async function GET(request: NextRequest) {
+  const origin = request.headers.get('origin');
   try {
     // Extract and verify JWT token
     const authHeader = request.headers.get('authorization');
@@ -24,7 +34,7 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Authorization token is required' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -32,7 +42,7 @@ export async function GET(request: NextRequest) {
     if (!decoded) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -110,7 +120,7 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      { status: 200 }
+      { status: 200, headers: getCorsHeaders(origin) }
     );
   } catch (error: any) {
     console.error('❌ Get attendance error:', error);
@@ -121,7 +131,7 @@ export async function GET(request: NextRequest) {
         error: 'Internal server error',
         message: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
-      { status: 500 }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }

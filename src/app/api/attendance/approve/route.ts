@@ -3,12 +3,22 @@ import connectDB from '@/lib/mongodb';
 import Attendance from '@/models/Attendance';
 import User, { UserRole } from '@/models/User';
 import { extractTokenFromHeader, verifyToken } from '@/lib/auth';
+import { handleCorsOptions, getCorsHeaders } from '@/lib/cors';
+
+/**
+ * OPTIONS handler
+ * Handle CORS preflight request
+ */
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsOptions(request);
+}
 
 /**
  * POST /api/attendance/approve
  * Supervisor approves or rejects check-in/check-out requests
  */
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin');
   try {
     // Extract and verify JWT token
     const authHeader = request.headers.get('authorization');
@@ -17,7 +27,7 @@ export async function POST(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Authorization token is required' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -25,7 +35,7 @@ export async function POST(request: NextRequest) {
     if (!decoded) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -37,7 +47,7 @@ export async function POST(request: NextRequest) {
     if (!supervisor) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
-        { status: 404 }
+        { status: 404, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -45,7 +55,7 @@ export async function POST(request: NextRequest) {
     if (supervisor.role !== UserRole.SUPERVISOR && supervisor.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { success: false, error: 'Only supervisors can approve attendance' },
-        { status: 403 }
+        { status: 403, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -57,21 +67,21 @@ export async function POST(request: NextRequest) {
     if (!attendanceId || typeof attendanceId !== 'string') {
       return NextResponse.json(
         { success: false, error: 'Attendance ID is required' },
-        { status: 400 }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
     if (!action || !['approve', 'reject'].includes(action)) {
       return NextResponse.json(
         { success: false, error: 'Action must be either "approve" or "reject"' },
-        { status: 400 }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
     if (!type || !['checkin', 'checkout'].includes(type)) {
       return NextResponse.json(
         { success: false, error: 'Type must be either "checkin" or "checkout"' },
-        { status: 400 }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -79,7 +89,7 @@ export async function POST(request: NextRequest) {
     if (action === 'reject' && !rejectionReason) {
       return NextResponse.json(
         { success: false, error: 'Rejection reason is required when rejecting' },
-        { status: 400 }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -88,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (!attendance) {
       return NextResponse.json(
         { success: false, error: 'Attendance record not found' },
-        { status: 404 }
+        { status: 404, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -98,7 +108,7 @@ export async function POST(request: NextRequest) {
       if (!supervisor.officeId || supervisor.officeId.toString() !== attendance.office.toString()) {
         return NextResponse.json(
           { success: false, error: 'You can only approve attendance for your office' },
-          { status: 403 }
+          { status: 403, headers: getCorsHeaders(origin) }
         );
       }
     }
@@ -110,7 +120,7 @@ export async function POST(request: NextRequest) {
       if (attendance.checkinStatus !== 'pending') {
         return NextResponse.json(
           { success: false, error: `Check-in already ${attendance.checkinStatus}` },
-          { status: 400 }
+          { status: 400, headers: getCorsHeaders(origin) }
         );
       }
 
@@ -128,7 +138,7 @@ export async function POST(request: NextRequest) {
       if (attendance.checkoutStatus && attendance.checkoutStatus !== 'pending') {
         return NextResponse.json(
           { success: false, error: `Check-out already ${attendance.checkoutStatus}` },
-          { status: 400 }
+          { status: 400, headers: getCorsHeaders(origin) }
         );
       }
 
@@ -157,7 +167,7 @@ export async function POST(request: NextRequest) {
           approvedAt: now,
         },
       },
-      { status: 200 }
+      { status: 200, headers: getCorsHeaders(origin) }
     );
   } catch (error: any) {
     console.error('❌ Approval error:', error);
@@ -166,7 +176,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: error.message || 'Failed to process approval',
       },
-      { status: 500 }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }
@@ -176,6 +186,7 @@ export async function POST(request: NextRequest) {
  * Get pending attendance records for supervisor to review
  */
 export async function GET(request: NextRequest) {
+  const origin = request.headers.get('origin');
   try {
     // Extract and verify JWT token
     const authHeader = request.headers.get('authorization');
@@ -184,7 +195,7 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Authorization token is required' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -192,7 +203,7 @@ export async function GET(request: NextRequest) {
     if (!decoded) {
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
-        { status: 401 }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -204,7 +215,7 @@ export async function GET(request: NextRequest) {
     if (!supervisor) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
-        { status: 404 }
+        { status: 404, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -212,7 +223,7 @@ export async function GET(request: NextRequest) {
     if (supervisor.role !== UserRole.SUPERVISOR && supervisor.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { success: false, error: 'Only supervisors can view pending attendance' },
-        { status: 403 }
+        { status: 403, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -242,7 +253,7 @@ export async function GET(request: NextRequest) {
         data: pendingAttendance,
         count: pendingAttendance.length,
       },
-      { status: 200 }
+      { status: 200, headers: getCorsHeaders(origin) }
     );
   } catch (error: any) {
     console.error('❌ Get pending attendance error:', error);
@@ -251,7 +262,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error.message || 'Failed to fetch pending attendance',
       },
-      { status: 500 }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }
