@@ -116,14 +116,7 @@ export async function POST(request: NextRequest) {
     const now = new Date();
 
     if (type === 'checkin') {
-      // Check if already processed
-      if (attendance.checkinStatus !== 'pending') {
-        return NextResponse.json(
-          { success: false, error: `Check-in already ${attendance.checkinStatus}` },
-          { status: 400, headers: getCorsHeaders(origin) }
-        );
-      }
-
+      // Supervisor có thể thay đổi quyết định bất cứ lúc nào (pending/approved/rejected -> approve/reject)
       // Update check-in status
       attendance.checkinStatus = action === 'approve' ? 'approved' : 'rejected';
       attendance.checkinApprovedBy = supervisor._id;
@@ -132,16 +125,12 @@ export async function POST(request: NextRequest) {
       // Save rejection reason if rejecting
       if (action === 'reject' && rejectionReason) {
         attendance.checkinRejectionReason = rejectionReason;
+      } else if (action === 'approve') {
+        // Clear rejection reason when approving (in case it was previously rejected)
+        attendance.checkinRejectionReason = undefined;
       }
     } else {
-      // Check if already processed
-      if (attendance.checkoutStatus && attendance.checkoutStatus !== 'pending') {
-        return NextResponse.json(
-          { success: false, error: `Check-out already ${attendance.checkoutStatus}` },
-          { status: 400, headers: getCorsHeaders(origin) }
-        );
-      }
-
+      // Supervisor có thể thay đổi quyết định bất cứ lúc nào (pending/approved/rejected -> approve/reject)
       // Update check-out status
       attendance.checkoutStatus = action === 'approve' ? 'approved' : 'rejected';
       attendance.checkoutApprovedBy = supervisor._id;
@@ -150,6 +139,9 @@ export async function POST(request: NextRequest) {
       // Save rejection reason if rejecting
       if (action === 'reject' && rejectionReason) {
         attendance.checkoutRejectionReason = rejectionReason;
+      } else if (action === 'approve') {
+        // Clear rejection reason when approving (in case it was previously rejected)
+        attendance.checkoutRejectionReason = undefined;
       }
     }
 
@@ -227,40 +219,40 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build query based on role
-    const query: any = {
-      $or: [
-        { checkinStatus: 'pending' },
-        { checkoutStatus: 'pending' },
-      ],
-    };
+    // Build query - show all records (pending, approved, rejected) so supervisor can change decisions
+    const query: any = {};
 
     // Supervisors can only see their office's attendance
     if (supervisor.role === UserRole.SUPERVISOR && supervisor.officeId) {
       query.office = supervisor.officeId;
     }
 
-    // Get pending attendance records
-    const pendingAttendance = await Attendance.find(query)
+    // Get attendance records from the last 7 days (can be adjusted)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    query.checkinTime = { $gte: sevenDaysAgo };
+
+    // Get attendance records (all statuses)
+    const attendanceRecords = await Attendance.find(query)
       .populate('user', 'fullName email badgeNumber')
       .populate('office', 'name')
       .sort({ checkinTime: -1 })
-      .limit(100);
+      .limit(200);
 
     return NextResponse.json(
       {
         success: true,
-        data: pendingAttendance,
-        count: pendingAttendance.length,
+        data: attendanceRecords,
+        count: attendanceRecords.length,
       },
       { status: 200, headers: getCorsHeaders(origin) }
     );
   } catch (error: any) {
-    console.error('❌ Get pending attendance error:', error);
+    console.error('❌ Get attendance records error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Failed to fetch pending attendance',
+        error: error.message || 'Failed to fetch attendance records',
       },
       { status: 500, headers: getCorsHeaders(origin) }
     );

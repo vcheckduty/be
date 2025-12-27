@@ -220,7 +220,7 @@ app.prepare().then(() => {
       });
     });
 
-    // Message read
+    // Message read (single message)
     socket.on('message:read', async (data) => {
       try {
         const message = await Message.findByIdAndUpdate(
@@ -254,6 +254,58 @@ app.prepare().then(() => {
         }
       } catch (error) {
         console.error('Mark read error:', error);
+      }
+    });
+
+    // Mark all messages from a sender as read
+    socket.on('messages:mark-all-read', async (data) => {
+      try {
+        const { senderId, receiverId } = data;
+        
+        // Update all unread messages from sender to receiver
+        const result = await Message.updateMany(
+          {
+            sender: senderId,
+            receiver: receiverId,
+            status: { $ne: 'read' }
+          },
+          {
+            $set: {
+              status: 'read',
+              readAt: new Date()
+            }
+          }
+        );
+
+        // Update Conversation unread count
+        if (Conversation) {
+          const conversation = await Conversation.findOne({
+            participants: { $all: [senderId, receiverId] }
+          });
+          
+          if (conversation) {
+            conversation.unreadCounts.set(receiverId, 0);
+            await conversation.save();
+          }
+        }
+
+        // Notify sender that all messages were read
+        io.to(`user:${senderId}`).emit('messages:all-read', {
+          readerId: receiverId,
+          count: result.modifiedCount,
+          readAt: new Date()
+        });
+
+        // Confirm to receiver
+        socket.emit('messages:mark-all-read:success', {
+          count: result.modifiedCount
+        });
+
+      } catch (error) {
+        console.error('Mark all read error:', error);
+        socket.emit('messages:mark-all-read:error', { 
+          error: 'Failed to mark messages as read' 
+        });
       }
     });
 
