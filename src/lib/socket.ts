@@ -1,7 +1,7 @@
 import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Message } from '@/models/Message';
-import { User } from '@/models/User';
+import User from '@/models/User';
 
 let io: SocketIOServer | null = null;
 

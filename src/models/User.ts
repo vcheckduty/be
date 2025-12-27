@@ -23,6 +23,8 @@ export interface IUser extends Document {
   department?: string;
   officeId?: mongoose.Types.ObjectId; // Office assignment for members
   isActive: boolean;
+  isOnline: boolean;
+  lastSeen: Date;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
