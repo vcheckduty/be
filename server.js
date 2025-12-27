@@ -18,6 +18,29 @@ app.prepare().then(() => {
   const httpServer = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url, true);
+      
+      // CORS handling
+      const origin = req.headers.origin;
+      const allowedOrigins = [
+        'http://localhost:3001',
+        'http://localhost:3000',
+        'https://vcheck-fe.onrender.com',
+        process.env.FRONTEND_URL
+      ].filter(Boolean);
+      
+      if (origin && allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+      }
+      
+      if (req.method === 'OPTIONS') {
+        res.statusCode = 200;
+        res.end();
+        return;
+      }
+
       await handle(req, res, parsedUrl);
     } catch (err) {
       console.error('Error occurred handling', req.url, err);
