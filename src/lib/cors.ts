@@ -11,6 +11,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:5174',
   'https://vcheck-fe.onrender.com',
+  'https://vcheck.onrender.com',
   // Add your production domains here
 ];
 

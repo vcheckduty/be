@@ -28,7 +28,8 @@ app.prepare().then(() => {
         process.env.FRONTEND_URL
       ].filter(Boolean);
       
-      if (origin && allowedOrigins.includes(origin)) {
+      // Always set CORS headers for allowed origins
+      if (origin && (allowedOrigins.includes(origin) || origin.startsWith('http://localhost:'))) {
         res.setHeader('Access-Control-Allow-Origin', origin);
         res.setHeader('Access-Control-Allow-Credentials', 'true');
         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
