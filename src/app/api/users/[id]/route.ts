@@ -20,6 +20,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const origin = request.headers.get('origin');
+  
   try {
     // Extract and verify JWT token
     const authHeader = request.headers.get('authorization');
@@ -93,6 +95,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const origin = request.headers.get('origin');
+  
   try {
     // Extract and verify JWT token
     const authHeader = request.headers.get('authorization');
@@ -207,6 +211,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const origin = request.headers.get('origin');
+  
   try {
     // Extract and verify JWT token
     const authHeader = request.headers.get('authorization');
