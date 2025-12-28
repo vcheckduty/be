@@ -219,40 +219,40 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build query - show all records (pending, approved, rejected) so supervisor can change decisions
-    const query: any = {};
+    // Build query - chỉ lấy records pending
+    const query: any = {
+      $or: [
+        { checkinStatus: 'pending' },
+        { checkoutStatus: 'pending' },
+      ],
+    };
 
     // Supervisors can only see their office's attendance
     if (supervisor.role === UserRole.SUPERVISOR && supervisor.officeId) {
       query.office = supervisor.officeId;
     }
 
-    // Get attendance records from the last 7 days (can be adjusted)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    query.checkinTime = { $gte: sevenDaysAgo };
-
-    // Get attendance records (all statuses)
-    const attendanceRecords = await Attendance.find(query)
+    // Get pending attendance records
+    const pendingAttendance = await Attendance.find(query)
       .populate('user', 'fullName email badgeNumber')
       .populate('office', 'name')
       .sort({ checkinTime: -1 })
-      .limit(200);
+      .limit(100);
 
     return NextResponse.json(
       {
         success: true,
-        data: attendanceRecords,
-        count: attendanceRecords.length,
+        data: pendingAttendance,
+        count: pendingAttendance.length,
       },
       { status: 200, headers: getCorsHeaders(origin) }
     );
   } catch (error: any) {
-    console.error('❌ Get attendance records error:', error);
+    console.error('❌ Get pending attendance error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Failed to fetch attendance records',
+        error: error.message || 'Failed to fetch pending attendance',
       },
       { status: 500, headers: getCorsHeaders(origin) }
     );

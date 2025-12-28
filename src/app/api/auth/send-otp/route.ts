@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import OTP from '@/models/OTP';
-import { sendOTPEmail } from '@/lib/nodemailer';
 import { handleCorsOptions, getCorsHeaders } from '@/lib/cors';
 
 /**
@@ -62,28 +61,15 @@ export async function POST(request: NextRequest) {
     });
     await otp.save();
 
-    // Send OTP via email
-    try {
-      await sendOTPEmail(email, code);
-      
-      return NextResponse.json(
-        {
-          success: true,
-          message: 'OTP sent successfully to your email',
-          expiresIn: '5 minutes',
-        },
-        { status: 200, headers: getCorsHeaders(origin) }
-      );
-    } catch (emailError) {
-      // If email fails, delete the OTP from database
-      await OTP.deleteOne({ email: email.toLowerCase() });
-      
-      console.error('Email sending failed:', emailError);
-      return NextResponse.json(
-        { error: 'Failed to send OTP email. Please check your email configuration.' },
-        { status: 500, headers: getCorsHeaders(origin) }
-      );
-    }
+    // Return success (OTP is logged to console for development)
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'OTP generated successfully (check console logs)',
+        expiresIn: '5 minutes',
+      },
+      { status: 200, headers: getCorsHeaders(origin) }
+    );
 
   } catch (error) {
     console.error('Send OTP error:', error);
