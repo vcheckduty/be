@@ -31,31 +31,31 @@ function validateRegisterRequest(body: any): {
   error?: string;
 } {
   if (!body) {
-    return { isValid: false, error: 'Request body is required' };
+    return { isValid: false, error: 'Yêu cầu dữ liệu request body' };
   }
 
   const { username, email, password, fullName, role, badgeNumber, department } = body;
 
   // Required fields validation
   if (!username || typeof username !== 'string' || username.trim().length < 3) {
-    return { isValid: false, error: 'Username must be at least 3 characters' };
+    return { isValid: false, error: 'Tên đăng nhập phải có ít nhất 3 ký tự' };
   }
 
   if (!email || typeof email !== 'string' || !email.match(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/)) {
-    return { isValid: false, error: 'Valid email address is required' };
+    return { isValid: false, error: 'Yêu cầu địa chỉ email hợp lệ' };
   }
 
   if (!password || typeof password !== 'string' || password.length < 6) {
-    return { isValid: false, error: 'Password must be at least 6 characters' };
+    return { isValid: false, error: 'Mật khẩu phải có ít nhất 6 ký tự' };
   }
 
   if (!fullName || typeof fullName !== 'string' || fullName.trim().length === 0) {
-    return { isValid: false, error: 'Full name is required' };
+    return { isValid: false, error: 'Yêu cầu họ tên đầy đủ' };
   }
 
   // Optional fields validation
   if (role && !Object.values(UserRole).includes(role)) {
-    return { isValid: false, error: 'Invalid role specified' };
+    return { isValid: false, error: 'Vai trò không hợp lệ' };
   }
 
   return {
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     const existingUsername = await User.findOne({ username: userData.username });
     if (existingUsername) {
       return NextResponse.json(
-        { success: false, error: 'Username already exists' },
+        { success: false, error: 'Tên đăng nhập đã tồn tại' },
         { status: 409, headers: getCorsHeaders(origin) }
       );
     }
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     const existingEmail = await User.findOne({ email: userData.email });
     if (existingEmail) {
       return NextResponse.json(
-        { success: false, error: 'Email already exists' },
+        { success: false, error: 'Email đã tồn tại' },
         { status: 409, headers: getCorsHeaders(origin) }
       );
     }
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: 'User registered successfully',
+        message: 'Đăng ký người dùng thành công',
         data: {
           user: {
             id: user._id,
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
       return NextResponse.json(
-        { success: false, error: `${field} already exists` },
+        { success: false, error: `${field} đã tồn tại` },
         { status: 409, headers: getCorsHeaders(origin) }
       );
     }
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Validation error',
+          error: 'Lỗi xác thực dữ liệu',
           details: Object.values(error.errors).map((err: any) => err.message),
         },
         { status: 400, headers: getCorsHeaders(origin) }
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
     // Handle JSON parse errors
     if (error instanceof SyntaxError) {
       return NextResponse.json(
-        { success: false, error: 'Invalid JSON in request body' },
+        { success: false, error: 'JSON không hợp lệ trong request body' },
         { status: 400, headers: getCorsHeaders(origin) }
       );
     }
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error',
+        error: 'Lỗi máy chủ nội bộ',
         message: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500, headers: getCorsHeaders(origin) }

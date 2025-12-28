@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     // Validate email
     if (!email || typeof email !== 'string') {
       return NextResponse.json(
-        { error: 'Valid email is required' },
+        { error: 'Yêu cầu email hợp lệ' },
         { status: 400, headers: getCorsHeaders(origin) }
       );
     }
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json(
-        { error: 'Invalid email format' },
+        { error: 'Định dạng email không hợp lệ' },
         { status: 400, headers: getCorsHeaders(origin) }
       );
     }
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Send OTP error:', error);
     return NextResponse.json(
-      { error: 'Failed to send OTP. Please try again.' },
+      { error: 'Gữi OTP thất bại. Vui lòng thử lại.' },
       { status: 500, headers: getCorsHeaders(origin) }
     );
   }

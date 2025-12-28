@@ -18,17 +18,17 @@ function validateLoginRequest(body: any): {
   error?: string;
 } {
   if (!body) {
-    return { isValid: false, error: 'Request body is required' };
+    return { isValid: false, error: 'Yêu cầu dữ liệu yêu cầu' };
   }
 
   const { username, password } = body;
 
   if (!username || typeof username !== 'string' || username.trim().length === 0) {
-    return { isValid: false, error: 'Username is required' };
+    return { isValid: false, error: 'Yêu cầu tên đăng nhập' };
   }
 
   if (!password || typeof password !== 'string' || password.length === 0) {
-    return { isValid: false, error: 'Password is required' };
+    return { isValid: false, error: 'Yêu cầu mật khẩu' };
   }
 
   return {
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     
     if (!user) {
       return NextResponse.json(
-        { success: false, error: 'Invalid username or password' },
+        { success: false, error: 'Tên đăng nhập hoặc mật khẩu không đúng' },
         { status: 401, headers: getCorsHeaders(origin) }
       );
     }
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return NextResponse.json(
-        { success: false, error: 'Invalid username or password' },
+        { success: false, error: 'Tên đăng nhập hoặc mật khẩu không đúng' },
         { status: 401, headers: getCorsHeaders(origin) }
       );
     }
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Account not activated', 
+          error: 'Tài khoản chưa được kích hoạt', 
           needsActivation: true,
           email: user.email 
         },
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: 'Login successful',
+        message: 'Đăng nhập thành công',
         data: {
           user: {
             id: user._id,
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     // Handle JSON parse errors
     if (error instanceof SyntaxError) {
       return NextResponse.json(
-        { success: false, error: 'Invalid JSON in request body' },
+        { success: false, error: 'Dữ liệu JSON không hợp lệ' },
         { status: 400, headers: getCorsHeaders(origin) }
       );
     }
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error',
+        error: 'Lỗi máy chủ nội bộ',
         message: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500, headers: getCorsHeaders(origin) }
